@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Glow Tracker V4 - Final Perfect Edition</title>
+    <title>Glow Tracker V5 - Firebase Live</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
         :root { --bg: #0f172a; --card-bg: rgba(30, 41, 59, 0.7); --accent: #8b5cf6; --accent-glow: rgba(139, 92, 246, 0.5); --success: #10b981; --danger: #ef4444; --text: #f1f5f9; }
@@ -27,38 +27,17 @@
         .status-verified { background: rgba(16, 185, 129, 0.2); color: #10b981; border: 1px solid #10b981; }
         .status-pending { background: rgba(245, 158, 11, 0.2); color: #fbbf24; border: 1px solid #fbbf24; }
         .timestamp { font-size: 0.6rem; opacity: 0.6; display: block; }
-        .forgot-link { font-size: 0.75rem; color: #94a3b8; text-decoration: underline; cursor: pointer; display: block; margin-top: 10px; }
     </style>
 </head>
 <body>
 
 <div class="bg-glow"></div>
-
 <div class="container">
     <div id="loginSection" class="glass-card login-card">
-        <h2 style="color:var(--accent); margin:0;">SHS Activity Tracker System</h2>
-        <p style="color:#94a3b8; font-size:0.85rem; margin-bottom:25px;">Enter Name & PIN to start</p>
+        <h2 style="color:var(--accent);">SHS Activity Tracker</h2>
         <input type="text" id="loginIdentifier" placeholder="Full Name">
         <input type="password" id="userPin" placeholder="4-Digit PIN" maxlength="4">
         <button class="btn-main" onclick="attemptLogin()">Log In</button>
-        <span class="forgot-link" onclick="forgotPin()">Forgot PIN?</span>
-    </div>
-
-    <div id="setupSecurity" class="hidden glass-card login-card">
-        <h3 style="color:var(--accent); margin:0;">Security Setup</h3>
-        <p style="font-size: 0.8rem; opacity: 0.8;">Set a recovery color for your account.</p>
-        <input type="text" value="Question: Favorite Color?" disabled>
-        <input type="text" id="setupAnswer" placeholder="Your Secret Answer">
-        <button class="btn-main" onclick="saveSecurityConfig()">Save & Login</button>
-    </div>
-
-    <div id="recoverySection" class="hidden glass-card login-card">
-        <h3 style="color:var(--accent); margin:0;">Reset PIN</h3>
-        <p id="recoveryPrompt" style="font-size: 0.8rem; opacity: 0.8;"></p>
-        <input type="text" id="recoveryAnswer" placeholder="Your Secret Answer">
-        <input type="password" id="newPin" placeholder="New 4-Digit PIN" maxlength="4">
-        <button class="btn-main" onclick="resetPin()">Update PIN</button>
-        <span class="forgot-link" onclick="location.reload()">Back to Login</span>
     </div>
 
     <div id="dashboard" class="hidden">
@@ -66,156 +45,114 @@
             <div>
                 <small id="roleLabel" style="color:var(--accent); font-weight:bold;"></small>
                 <h2 id="welcomeUser" style="margin:0"></h2>
-                <small id="userSectionLabel" style="color:#94a3b8;"></small>
             </div>
             <button class="btn-danger" onclick="location.reload()">Logout</button>
         </div>
 
         <div class="glass-card" style="display: flex; gap: 15px; flex-wrap: wrap;">
-            <input type="text" id="universalSearch" placeholder="Search name or activity..." onkeyup="renderUI()" style="flex: 2; margin: 0;">
+            <input type="text" id="universalSearch" placeholder="Search name or activity..." style="flex: 2; margin: 0;">
             <div id="teacherFilterWrap" class="hidden" style="flex: 1;">
-                <select id="sectionFilter" onchange="renderUI()" style="margin: 0;">
-                    <option value="ALL">ALL SECTIONS</option>
-                </select>
+                <select id="sectionFilter"></select>
             </div>
         </div>
 
-        <div id="teacherDashboard" class="hidden">
+        <div id="teacherUI" class="hidden">
             <div class="glass-card">
-                <h3 style="margin-top:0;">Post New Activity</h3>
+                <h3>Post New Activity</h3>
                 <div style="display:flex; gap:10px; flex-wrap:wrap;">
                     <input type="text" id="actTitle" placeholder="Activity Title" style="flex:2">
                     <input type="date" id="actDate" style="flex:1">
-                    <button class="btn-main" style="width:auto;" onclick="createActivity()">Post Now</button>
+                    <button class="btn-main" style="width:auto;" onclick="window.createActivity()">Post Now</button>
                 </div>
             </div>
             <div class="table-container"><table id="teacherMasterTable"></table></div>
         </div>
 
-        <div id="studentDashboard" class="hidden">
+        <div id="studentUI" class="hidden">
             <div class="table-container"><table id="studentMasterTable"></table></div>
         </div>
     </div>
 </div>
 
-<script>
+<script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getDatabase, ref, set, push, onValue, update, remove } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+    // --- PASTE MO DITO CONFIG MO ---
+    const firebaseConfig = {
+        apiKey: "YOUR_API_KEY",
+        authDomain: "YOUR_PROJECT.firebaseapp.com",
+        databaseURL: "https://YOUR_PROJECT-default-rtdb.firebaseio.com",
+        projectId: "YOUR_PROJECT",
+        storageBucket: "YOUR_PROJECT.appspot.com",
+        messagingSenderId: "YOUR_ID",
+        appId: "YOUR_APP_ID"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+
     const teachers = ["Ser CC", "Ms. Sarah Ledesma", "Mr. Jerolle Carlos Marasigan", "Ms. Jaenah Reyes", "Ms. Marjorie Montero", "Mr. Jaybie Humarang", "Mr. Jim Tozie Jimenez", "Mr. Czernon Jet Jaranilla", "Mr. Kent Chardrich Canete", "Mr. Jericho Villalobos", "Mr. Ainon Isla", "Ms. Angelyn Guiling", "Ms. Romelia Macatangay-Tiopes"];
-    
     const sectionData = {
         "ICT 11 - PIXEL": ["Heart Alliyah Pineda", "Marasigan Angel", "Ilao Kim Audrey", "Hawak Samantha", "Hawak Zyrell", "Reyes Noah", "Shibayama Yuh", "Hernandez Julius", "Boa Lia Camry", "Tenorio John Isaac", "Gopez Bianca Miracle"], 
         "ABM 11 - ENTREP": ["Orfanel Hannah", "De Leon Alexa","Caringal Arianne", "Almeda Shane May", "Martinez Razzel", "Landicho John Raver", "Balba Ian Dave", "Luya Prince Cedrick", "Guituiza Maraiah Cohlien", "Balderian Rafael"],
-        "ABM 11 - BUSINESS": ["Tolosa Mark Jethro", "Landicho Lenon", "Precious Margareth", "Ismael Jenna Karisse", "Dela Cruz Princess Angel", "Tamayo Aezel Colleen", "Marasigan David", "Maala Michaela", "Baltisoto Reichel Althea", "Mendoza Zeus"],
-        "HUMSS 11 - ECONOMICS": ["Marcelana Ericka", "Catapang Shiela Mae", "Bacal Yeoj Anne", "Sagala Loraine", "Martin Jasha", "Suarez Mark Nick", "Abrogar Lindsay", "De Roxas Zyla", "Orosco Geron"],
-        "GAS 11 - BENEVOLENT": ["Villanueva Valerie", "catapat Mykos", "Npche Sofia Laurie", "Reyes Maria Andrea", "Tenorio Rainier", "Gardiola John Codie", "Panistan Freah", "Del Rosario Sarah", "Paguigui Maria", "Sinoc Kim Carlo"],
-        "H.E 11 - COLLINS": ["Furton Rhiana", "Reynaldo Aeron", "Galvez Cyrile", "Permejo Kristelle", "Luya Aldwin", "Aliling Allirah", "Agdan John Arvin", "Angulo Janah", "Datinguinoo Eujer"]
+        "ABM 11 - BUSINESS": ["Tolosa Mark Jethro", "Landicho Lenon", "Precious Margareth", "Ismael Jenna Karisse", "Dela Cruz Princess Angel", "Tamayo Aezel Colleen", "Marasigan David", "Maala Michaela", "Baltisoto Reichel Althea", "Mendoza Zeus"]
     };
 
-    let activeUser = "", activeRole = "", activeSection = "", tempPin = "";
+    let activeUser = "", activeRole = "", activitiesData = [];
 
-    function attemptLogin() {
-        const inputName = document.getElementById('loginIdentifier').value.trim().toLowerCase();
-        const inputPin = document.getElementById('userPin').value;
-        if (!inputName || inputPin.length < 4) return alert("Complete fields.");
+    window.attemptLogin = () => {
+        const nameInput = document.getElementById('loginIdentifier').value.trim();
+        let matched = teachers.find(t => t.toLowerCase() === nameInput.toLowerCase());
+        if(matched) activeRole = "teacher";
+        else {
+            for(let sec in sectionData) {
+                matched = sectionData[sec].find(s => s.toLowerCase() === nameInput.toLowerCase());
+                if(matched) { activeRole = "student"; break; }
+            }
+        }
 
-        let matchedUser = findUser(inputName);
-        if (!matchedUser) return alert("User not found.");
-
-        let pins = JSON.parse(localStorage.getItem('sys_pins_v5')) || {};
+        if(!matched) return alert("Name not found!");
+        activeUser = matched;
         
-        if (!pins[matchedUser.name]) {
-            activeUser = matchedUser.name; activeRole = matchedUser.role; activeSection = matchedUser.section; tempPin = inputPin;
-            document.getElementById('loginSection').classList.add('hidden');
-            document.getElementById('setupSecurity').classList.remove('hidden');
-        } else {
-            if (pins[matchedUser.name].pin !== inputPin) return alert("Wrong PIN.");
-            loginSuccess(matchedUser.name, matchedUser.role, matchedUser.section);
-        }
-    }
-
-    function findUser(nameInput) {
-        let t = teachers.find(t => t.toLowerCase().includes(nameInput));
-        if (t) return { name: t, role: "teacher", section: "N/A" };
-        for (let sec in sectionData) {
-            let s = sectionData[sec].find(st => st.toLowerCase().includes(nameInput));
-            if (s) return { name: s, role: "student", section: sec };
-        }
-        return null;
-    }
-
-    function saveSecurityConfig() {
-        const ans = document.getElementById('setupAnswer').value.trim().toLowerCase();
-        if (!ans) return alert("Provide an answer.");
-        let pins = JSON.parse(localStorage.getItem('sys_pins_v5')) || {};
-        pins[activeUser] = { pin: tempPin, recovery: ans };
-        localStorage.setItem('sys_pins_v5', JSON.stringify(pins));
-        loginSuccess(activeUser, activeRole, activeSection);
-    }
-
-    function forgotPin() {
-        const inputName = document.getElementById('loginIdentifier').value.trim().toLowerCase();
-        if (!inputName) return alert("Enter your Full Name first.");
-        let matched = findUser(inputName);
-        if (!matched) return alert("Name not recognized.");
-        let pins = JSON.parse(localStorage.getItem('sys_pins_v5')) || {};
-        if (!pins[matched.name]) return alert("Account not yet registered with a PIN.");
-        
-        activeUser = matched.name;
         document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('recoverySection').classList.remove('hidden');
-        document.getElementById('recoveryPrompt').innerText = `Recovery for: ${matched.name}\nQuestion: What is your favorite color?`;
-    }
-
-    function resetPin() {
-        const ans = document.getElementById('recoveryAnswer').value.trim().toLowerCase();
-        const pin = document.getElementById('newPin').value;
-        if (pin.length < 4) return alert("PIN must be 4 digits.");
-        let pins = JSON.parse(localStorage.getItem('sys_pins_v5')) || {};
-        if (pins[activeUser].recovery === ans) {
-            pins[activeUser].pin = pin;
-            localStorage.setItem('sys_pins_v5', JSON.stringify(pins));
-            alert("PIN updated successfully! logging in...");
-            location.reload();
-        } else {
-            alert("Incorrect recovery answer.");
-        }
-    }
-
-    function loginSuccess(name, role, section) {
-        activeUser = name; activeRole = role; activeSection = section;
-        document.getElementById('loginSection').classList.add('hidden');
-        document.getElementById('setupSecurity').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
-        document.getElementById('welcomeUser').innerText = name;
-        document.getElementById('roleLabel').innerText = role.toUpperCase();
-        document.getElementById('userSectionLabel').innerText = section !== "N/A" ? "Section: " + section : "";
-        if (role === 'teacher') {
-            let f = document.getElementById('sectionFilter');
+        document.getElementById('welcomeUser').innerText = activeUser;
+        document.getElementById('roleLabel').innerText = activeRole.toUpperCase();
+
+        if(activeRole === "teacher") {
+            document.getElementById('teacherUI').classList.remove('hidden');
+            const f = document.getElementById('sectionFilter');
             f.innerHTML = '<option value="ALL">ALL SECTIONS</option>';
             Object.keys(sectionData).forEach(s => f.innerHTML += `<option value="${s}">${s}</option>`);
             document.getElementById('teacherFilterWrap').classList.remove('hidden');
+        } else {
+            document.getElementById('studentUI').classList.remove('hidden');
         }
-        renderUI();
-    }
+
+        onValue(ref(db, 'activities'), (snap) => {
+            activitiesData = snap.val() ? Object.values(snap.val()) : [];
+            renderUI();
+        });
+    };
 
     function renderUI() {
-        const db = JSON.parse(localStorage.getItem('sys_db_final')) || [];
         const search = document.getElementById('universalSearch').value.toLowerCase();
         const today = new Date().toISOString().split('T')[0];
 
-        if (activeRole === 'teacher') {
-            document.getElementById('teacherDashboard').classList.remove('hidden');
+        if(activeRole === "teacher") {
             const secFilter = document.getElementById('sectionFilter').value;
-            let studentPool = secFilter === "ALL" ? Object.values(sectionData).flat() : (sectionData[secFilter] || []);
-            let myActs = db.filter(a => a.owner === activeUser);
-            let html = `<tr><th class="sticky-col">Student Name</th>`;
-            myActs.forEach(a => html += `<th>${a.title}<br><small>${a.date}</small></th>`);
-            html += `</tr>`;
-            studentPool.filter(s => s.toLowerCase().includes(search)).forEach(s => {
+            let pool = secFilter === "ALL" ? Object.values(sectionData).flat() : sectionData[secFilter];
+            let myActs = activitiesData.filter(a => a.owner === activeUser);
+
+            let html = `<tr><th class="sticky-col">Student</th>${myActs.map(a => `<th>${a.title}<br><small>Due: ${a.date}</small><br><button onclick="window.delAct('${a.id}')" style="background:red; font-size:8px; padding:2px 5px;">Del</button></th>`).join('')}</tr>`;
+            pool.filter(s => s.toLowerCase().includes(search)).forEach(s => {
                 html += `<tr><td class="sticky-col">${s}</td>`;
                 myActs.forEach(a => {
-                    const sub = a.subs.find(e => e.student === s);
-                    if (sub) {
-                        html += `<td><span class="status-badge ${sub.status==='Verified'?'status-verified':'status-pending'}">${sub.status}</span><span class="timestamp">${sub.time}</span>${sub.status === 'Pending' ? `<button class="btn-outline" onclick="verifySub('${a.id}','${s}')">Verify</button>` : ''}</td>`;
+                    const sub = a.subs ? Object.values(a.subs).find(x => x.student === s) : null;
+                    if(sub) {
+                        html += `<td><span class="status-badge ${sub.status==='Verified'?'status-verified':'status-pending'}">${sub.status}</span><span class="timestamp">${sub.time}</span>
+                                 ${sub.status==='Pending' ? `<button class="btn-outline" onclick="window.verify('${a.id}','${s}')">Verify</button>` : ''}</td>`;
                     } else {
                         html += `<td>${a.date < today ? '<span style="color:red; font-weight:bold; font-size:0.7rem;">LATE</span>' : '-'}</td>`;
                     }
@@ -224,15 +161,15 @@
             });
             document.getElementById('teacherMasterTable').innerHTML = html;
         } else {
-            document.getElementById('studentDashboard').classList.remove('hidden');
             let html = `<tr><th class="sticky-col">Teacher</th><th>Activities</th></tr>`;
-            teachers.filter(t => t.toLowerCase().includes(search)).forEach(t => {
-                const acts = db.filter(a => a.owner === t);
+            teachers.forEach(t => {
+                const acts = activitiesData.filter(a => a.owner === t);
                 html += `<tr><td class="sticky-col">${t}</td><td style="display:flex; gap:10px; overflow-x:auto; padding:10px;">`;
-                if (acts.length === 0) html += `<span style="opacity:0.4;">No activities</span>`;
                 acts.forEach(a => {
-                    const sub = a.subs.find(e => e.student === activeUser);
-                    html += `<div style="min-width:160px; background:rgba(255,255,255,0.05); padding:12px; border-radius:12px; border:1px solid rgba(255,255,255,0.1);"><strong style="font-size:0.85rem;">${a.title}</strong><br><small>Due: ${a.date}</small><br>${sub ? `<span class="status-badge ${sub.status==='Verified'?'status-verified':'status-pending'}">${sub.status}</span>` : `<button class="btn-outline" style="width:100%;" onclick="submitTask('${a.id}')">Submit</button>`}</div>`;
+                    const sub = a.subs ? Object.values(a.subs).find(x => x.student === activeUser) : null;
+                    html += `<div style="min-width:160px; background:rgba(255,255,255,0.05); padding:10px; border-radius:10px; border:1px solid rgba(255,255,255,0.1);">
+                             <strong>${a.title}</strong><br><small>Due: ${a.date}</small><br>
+                             ${sub ? `<span class="status-badge ${sub.status==='Verified'?'status-verified':'status-pending'}">${sub.status}</span><span class="timestamp">${sub.time}</span>` : `<button class="btn-outline" onclick="window.submit('${a.id}')">Submit</button>`}</div>`;
                 });
                 html += `</td></tr>`;
             });
@@ -240,33 +177,32 @@
         }
     }
 
-    function createActivity() {
+    // Firebase Actions
+    window.createActivity = () => {
         const title = document.getElementById('actTitle').value;
         const date = document.getElementById('actDate').value;
-        if (!title || !date) return alert("Fill title and date.");
-        let db = JSON.parse(localStorage.getItem('sys_db_final')) || [];
-        db.push({ id: Date.now(), owner: activeUser, title: title, date: date, subs: [] });
-        localStorage.setItem('sys_db_final', JSON.stringify(db));
+        if(!title || !date) return alert("Fill title and date.");
+        const newRef = push(ref(db, 'activities'));
+        set(newRef, { id: newRef.key, title: title, date: date, owner: activeUser });
         document.getElementById('actTitle').value = "";
-        renderUI();
-    }
+    };
 
-    function submitTask(id) {
-        let db = JSON.parse(localStorage.getItem('sys_db_final')) || [];
-        const idx = db.findIndex(a => a.id == id);
-        db[idx].subs.push({ student: activeUser, status: 'Pending', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) });
-        localStorage.setItem('sys_db_final', JSON.stringify(db));
-        renderUI();
-    }
+    window.submit = (id) => {
+        const time = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        push(ref(db, `activities/${id}/subs`), { student: activeUser, status: 'Pending', time: time });
+    };
 
-    function verifySub(actId, studName) {
-        let db = JSON.parse(localStorage.getItem('sys_db_final')) || [];
-        const aIdx = db.findIndex(a => a.id == actId);
-        const sIdx = db[aIdx].subs.findIndex(s => s.student === studName);
-        db[aIdx].subs[sIdx].status = 'Verified';
-        localStorage.setItem('sys_db_final', JSON.stringify(db));
-        renderUI();
-    }
+    window.verify = (aId, sName) => {
+        onValue(ref(db, `activities/${aId}/subs`), (snap) => {
+            const subs = snap.val();
+            for(let k in subs) { if(subs[k].student === sName) update(ref(db, `activities/${aId}/subs/${k}`), { status: 'Verified' }); }
+        }, { onlyOnce: true });
+    };
+
+    window.delAct = (id) => { if(confirm("Delete this activity?")) remove(ref(db, `activities/${id}`)); };
+
+    document.getElementById('universalSearch').onkeyup = renderUI;
+    document.getElementById('sectionFilter').onchange = renderUI;
 </script>
 </body>
 </html>
